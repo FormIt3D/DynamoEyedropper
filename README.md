@@ -1,6 +1,6 @@
-Generate Vertex
+Dynamo Eyedropper
 ========================
 
-Generate a standalone vertex using XYZ coordinates.
+Apply input values when possible between two Dynamo objects.
 
 ![Main Preview](https://formit3d.github.io/GenerateVertex/preview.png)
