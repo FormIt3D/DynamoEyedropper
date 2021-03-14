@@ -18,7 +18,11 @@ const dynamoObjectToMatchInputCountID = 'dynamoObjectToMatchInputCount';
 const dynamoObjectToChangeDescriptionID = 'dynamoObjectToChangeDescription';
 const dynamoObjectToChangeGroupNameID = 'dynamoObjectToChangeGroupName';
 const dynamoObjectToChangeInputCountID = 'dynamoObjectToChangeInputCount';
-// affected inputs section
+// review and apply section
+const missingSelectionsDivID = 'noSelectionsDiv';
+const incompatibleSelectionDivID = 'incompatibleSelectionDiv';
+const reviewAndApplyDetailsDivID = 'reviewAndApplySection';
+const affectedInputsCountID = 'affectedInputsCount';
 const affectedInputsListID = 'affectedInputsList';
 
 const selectionMessagePrefixText = 'Select a Dynamo object ';
@@ -97,23 +101,43 @@ DynamoEyedropper.initializeUI = function()
     contentContainer.appendChild(new FormIt.PluginUI.Button('Select Dynamo Object to Change', DynamoEyedropper.getDynamoInputsToChange).element);
 
     // create affected inputs subheader
-    let affectedInputsSubHeader = contentContainer.appendChild(document.createElement('p'));
-    affectedInputsSubHeader.style = 'font-weight: bold;'
-    affectedInputsSubHeader.innerHTML = 'Affected Inputs';
+    let reviewAndApplySubheader = contentContainer.appendChild(document.createElement('p'));
+    reviewAndApplySubheader.style = 'font-weight: bold;'
+    reviewAndApplySubheader.innerHTML = 'Review and Apply Changes';
+
+    // when not all selections have been fulfilled
+    let missingSelectionsDiv = contentContainer.appendChild(document.createElement('p'));
+    missingSelectionsDiv.innerHTML = 'Select objects above to continue...';
+    missingSelectionsDiv.id = missingSelectionsDivID;
+    contentContainer.appendChild(missingSelectionsDiv);
+
+    // when the selections are fulfilled, but incompatible
+    let incompatibleSelectionsDiv = contentContainer.appendChild(document.createElement('p'));
+    incompatibleSelectionsDiv.innerHTML = 'No common inputs found in the selected Dynamo objects.';
+    incompatibleSelectionsDiv.id = incompatibleSelectionDivID;
+    contentContainer.appendChild(incompatibleSelectionsDiv);
+
+    // create the affected inputs container
+    // will be hidden until both selections are valid
+    let reviewAndApplyDetailsDiv = contentContainer.appendChild(document.createElement('div'));
+    reviewAndApplyDetailsDiv.id = reviewAndApplyDetailsDivID;
 
     // the list of inputs that will be affected, and how
-    let affectedInputsListDiv = document.createElement('div');
-    affectedInputsListDiv.innerHTML = 'Affected inputs will go here'
-    affectedInputsListDiv.id = dynamoObjectToChangeDescriptionID;
-    contentContainer.appendChild(affectedInputsListDiv);
+    let affectedInputsCountDiv = document.createElement('div');
+    affectedInputsCountDiv.innerHTML = 'Number of affected inputs: ' + dynamoInputNodesInCommon.length;
+    affectedInputsCountDiv.id = dynamoObjectToChangeDescriptionID;
+    reviewAndApplyDetailsDiv.appendChild(affectedInputsCountDiv);
 
-    // create the apply subheader
-    let applySubheader = contentContainer.appendChild(document.createElement('p'));
-    applySubheader.style = 'font-weight: bold;'
-    applySubheader.innerHTML = 'Apply Changes';
+    let affectedInputsListDiv = document.createElement('div');
+    affectedInputsListDiv.innerHTML = 'Affected inputs: ' + JSON.stringify(dynamoInputNodesInCommon);
+    affectedInputsListDiv.id = dynamoObjectToChangeDescriptionID;
+    reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv);
 
     // create the button to select the object to change
-    contentContainer.appendChild(new FormIt.PluginUI.Button('Apply Changes', DynamoEyedropper.getDynamoInputsToChange).element);
+    reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes', DynamoEyedropper.getDynamoInputsToChange).element);
+
+    // update the review and apply section if necessary
+    DynamoEyedropper.updateUIForComparisonCheck();
 
     // create the footer
     document.body.appendChild(new FormIt.PluginUI.FooterModule().element);
@@ -143,6 +167,17 @@ DynamoEyedropper.setMatchObjectToActiveState = function()
     document.getElementById(dynamoObjectToMatchDescriptionID).innerHTML = objectIDPrefixText + dynamoHistoryIDToMatch;
     document.getElementById(dynamoObjectToMatchGroupNameID).innerHTML = groupNamePrefixText + dynamoGroupNameToMatch;
     document.getElementById(dynamoObjectToMatchInputCountID).innerHTML = inputCountPrefixText + dynamoInputNodesToMatch.length;
+
+    bIsMatchObjectAvailable = true;
+
+    if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
+    {
+        DynamoEyedropper.updateUIForComparisonCheck();
+    }
+    else
+    {
+        console.log("Missing one or more objects for comparison.");
+    }
 }
 
 DynamoEyedropper.setMatchObjectToSelectingState = function()
@@ -157,6 +192,8 @@ DynamoEyedropper.setMatchObjectToUnsetState = function()
     document.getElementById(dynamoObjectToMatchDescriptionID).innerHTML = notSetText;
     document.getElementById(dynamoObjectToMatchGroupNameID).innerHTML = '';
     document.getElementById(dynamoObjectToMatchInputCountID).innerHTML = '';
+
+    bIsMatchObjectAvailable = false;
 }
 
 /*** update mechanisms for the change object section ***/
@@ -183,6 +220,17 @@ DynamoEyedropper.setChangeObjectToActiveState = function()
     document.getElementById(dynamoObjectToChangeDescriptionID).innerHTML = objectIDPrefixText + dynamoHistoryIDToChange;
     document.getElementById(dynamoObjectToChangeGroupNameID).innerHTML = groupNamePrefixText + dynamoGroupNameToChange;
     document.getElementById(dynamoObjectToChangeInputCountID).innerHTML = inputCountPrefixText + dynamoInputNodesToChange.length;
+
+    bIsChangeObjectAvailable = true;
+
+    if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
+    {
+        DynamoEyedropper.updateUIForComparisonCheck();
+    }
+    else
+    {
+        console.log("Missing one or more objects for comparison.");
+    }
 }
 
 DynamoEyedropper.setChangeObjectToSelectingState = function()
@@ -197,6 +245,41 @@ DynamoEyedropper.setChangeObjectToUnsetState = function()
     document.getElementById(dynamoObjectToChangeDescriptionID).innerHTML = notSetText;
     document.getElementById(dynamoObjectToChangeGroupNameID).innerHTML = '';
     document.getElementById(dynamoObjectToChangeInputCountID).innerHTML = '';
+
+    bIsChangeObjectAvailable = false;
+}
+
+/*** update mechanisms for the comparison section ***/
+
+DynamoEyedropper.updateUIForComparisonCheck = function()
+{
+    // assume if we get here, we have both valid match object, and change object, history IDs
+    if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
+    {
+        DynamoEyedropper.getInputsInCommon();
+
+        if(dynamoInputNodesInCommon.length == 0)
+        {
+            document.getElementById(reviewAndApplyDetailsDivID).className = 'hide';
+            document.getElementById(incompatibleSelectionDivID).className = 'body';
+            document.getElementById(missingSelectionsDivID).className = 'hide';
+            console.log("No matching inputs found for comparison.");
+        }
+        else
+        {
+            document.getElementById(reviewAndApplyDetailsDivID).className = 'body';
+            document.getElementById(missingSelectionsDivID).className = 'hide';
+            document.getElementById(incompatibleSelectionDivID).className = 'hide';
+            console.log("Number of common inputs: " + dynamoInputNodesInCommon.length);
+        }
+    }
+    else
+    {
+        document.getElementById(missingSelectionsDivID).className = 'body';
+        document.getElementById(incompatibleSelectionDivID).className = 'hide';
+        document.getElementById(reviewAndApplyDetailsDivID).className = 'hide';
+    }
+
 }
 
 /*** application code - runs asynchronously from plugin process to communicate with FormIt ***/
@@ -210,11 +293,16 @@ let dynamoHistoryIDToChange;
 let dynamoGroupNameToChange;
 let dynamoInputNodesToChange;
 
+let dynamoInputNodesInCommon = new Array();
+let bIsMatchObjectAvailable;
+let bIsChangeObjectAvailable;
+
 // get the current history, query the selection, and report the number of items successfully selected
 DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
 {
     // get the Dynamo history ID from the selection
     dynamoHistoryIDToMatch = await FormIt.Dynamo.GetSelectedDynamoHistory();
+    dynamoGroupNameToMatch = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToMatch);
     dynamoInputNodesToMatch = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToMatch, true);
 
     // if the selection didn't return a valid object, put the user in a select mode
@@ -226,7 +314,9 @@ DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
         await FormIt.UI.ShowNotification(message, FormIt.NotificationType.Information, 0);
         console.log("\n" + message);
 
+        bIsMatchObjectAvailable = false;
         DynamoEyedropper.setMatchObjectToSelectingState();
+        DynamoEyedropper.updateUIForComparisonCheck();
 
         bIsSelectionForMatchInProgress = true;
     }
@@ -241,7 +331,8 @@ DynamoEyedropper.tryGetDynamoObjectToChange = async function()
 {
     // get the Dynamo history ID from the selection
     dynamoHistoryIDToChange = await FormIt.Dynamo.GetSelectedDynamoHistory();
-    dynamoINputNodesToMatch = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
+    dynamoGroupNameToChange = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToChange);
+    dynamoInputNodesToChange = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
 
     // if the selection didn't return a valid object, put the user in a select mode
     if (dynamoHistoryIDToChange == 4294967295)
@@ -252,7 +343,10 @@ DynamoEyedropper.tryGetDynamoObjectToChange = async function()
         await FormIt.UI.ShowNotification(message, FormIt.NotificationType.Information, 0);
         console.log("\n" + message);
 
+        bIsChangeObjectAvailable = false;
+        
         DynamoEyedropper.setChangeObjectToSelectingState();
+        DynamoEyedropper.updateUIForComparisonCheck();
 
         bIsSelectionForChangeInProgress = true;
     }
@@ -302,4 +396,30 @@ DynamoEyedropper.getDynamoInputsToChange = async function()
     dynamoInputNodesToChange = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
 
     console.log("Dynamo inputs: " + JSON.stringify(dynamoInputNodesToChange));
+}
+
+// get the inputs that are in common between the two selected Dynamo objects
+DynamoEyedropper.getInputsInCommon = function()
+{
+    // clear the array
+    dynamoInputNodesInCommon = [];
+
+    // for each input node in the list to match,
+    // look for the same element by name in the list of input nodes to change
+    dynamoInputNodesToMatch.forEach(inputNodeToMatch => {
+
+        dynamoInputNodesToChange.forEach(inputNodeToChange => {
+            
+            let inputNodeNameToMatch = inputNodeToMatch[1];
+            let inputNodeToChangeName = inputNodeToChange[1];
+
+            if (inputNodeNameToMatch == inputNodeToChangeName)
+            {
+                dynamoInputNodesInCommon.push(inputNodeToChange);
+            }
+
+        });
+
+    });
+
 }
