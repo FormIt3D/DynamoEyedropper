@@ -1,0 +1,51 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/FormItPluginStyling.css">
+    <title>Dynamo Eyedropper</title>
+    <META NAME="Title" CONTENT="Dynamo Eyedropper">
+    <META NAME="Author" CONTENT="Autodesk FormIt">
+        <script type="text/javascript" src="https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/FormIt.js"></script>
+        <script type="text/javascript" src="https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/FormItInterface.js"></script>
+        <script type="text/javascript" src="https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/PluginUtils18_0.js"></script>
+        <script type="text/javascript" src="https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/FormItPluginUI.js"></script>
+        <script type="text/javascript" src="https://formit3d.github.io/PropertiesPlus/PropertiesPlus_Client.js"></script>
+        <script type="text/javascript" src="DynamoEyedropper.js"></script>
+        <script type="text/javascript">
+        FormItInterface.Initialize(function () {
+
+            // subscribe to the message sent when units are changed
+            FormItInterface.SubscribeMessage("FormIt.Message.kSelectionsChanged", function(msg)
+            {
+                var jsonMessage = JSON.parse(msg);
+
+                if (bIsSelectionForMatchInProgress)
+                {
+                    // when the FormIt selection changes, automatically update the plugin UI
+                    DynamoEyedropper.updateUIForMatchObject();
+
+                    bIsSelectionForMatchInProgress = false;
+                }
+
+                if (bIsSelectionForChangeInProgress)
+                {
+                    // when the FormIt selection changes, automatically update the plugin UI
+                    DynamoEyedropper.updateUIForChangeObject();
+
+                    bIsSelectionForChangeInProgress = false;
+                }
+
+                //DynamoEyedropper.updateUI();
+            });
+
+            // initialize the UI
+            // this must be called from here, to ensure the HTML page is loaded
+            // before scripts try to access the window document
+            DynamoEyedropper.initializeUI();
+
+        }); // DOMContentLoaded
+    </script>
+</head>
+<body>
+
+</body>
+</html>
