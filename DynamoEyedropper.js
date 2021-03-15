@@ -135,8 +135,16 @@ DynamoEyedropper.initializeUI = async function()
     affectedInputsListDiv.id = affectedInputsListID;
     reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv);
 
-    // create the button to select the object to change
-    reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes', DynamoEyedropper.getDynamoInputsToChange).element);
+    // create the button to apply the changes
+    reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes', function()
+    {
+        var args = {
+        "dynamoHistoryToModify" : dynamoHistoryIDToChange,
+        "formattedGUIDsAndValuesObject": GUIDsAndValuesToModify
+        }
+    
+        window.FormItInterface.CallMethod("DynamoEyedropper.setDynamoData", args);
+    }).element);
 
     // update the review and apply section if necessary
     await DynamoEyedropper.updateUIForComparisonCheck();
@@ -295,6 +303,9 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
 /*** application code - runs asynchronously from plugin process to communicate with FormIt ***/
 
 // dynamo data
+let bIsMatchObjectAvailable;
+let bIsChangeObjectAvailable;
+
 let dynamoFileToMatch;
 let dynamoHistoryIDToMatch;
 let dynamoGroupNameToMatch;
@@ -312,9 +323,12 @@ let dynamoInputNodeNamesToChange = new Array();
 let dynamoInputNodeValuesToChange = new Array();
 
 let dynamoInputNodesInCommon = new Array();
-let dynamoInputNodeValuesInCommon = new Array();
-let bIsMatchObjectAvailable;
-let bIsChangeObjectAvailable;
+
+let dynamoInputGUIDsToModify = new Array();
+let dynamoInputValuesToModifyBefore = new Array();
+let dynamoInputValuesToModifyAfter = new Array();
+
+let GUIDsAndValuesToModify = {};
 
 // get the current history, query the selection, and report the number of items successfully selected
 DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
@@ -441,6 +455,12 @@ DynamoEyedropper.getInputsInCommon = async function()
     dynamoInputNodeNamesToChange = [];
     dynamoInputNodeValuesToChange = [];
 
+    dynamoInputGUIDsToModify = [];
+    dynamoInputValuesToModifyBefore = [];
+    dynamoInputValuesToModifyAfter = [];
+
+    GUIDsAndValuesToModify = { };
+
     dynamoFileToMatch = await FormIt.Dynamo.GetDynamoFile(dynamoHistoryIDToMatch);
     //console.log("Dynamo file to match: " + JSON.stringify(dynamoFileToMatch));
     dynamoFileToChange = await FormIt.Dynamo.GetDynamoFile(dynamoHistoryIDToChange);
@@ -461,6 +481,7 @@ DynamoEyedropper.getInputsInCommon = async function()
             let inputNodeNameToMatch = inputNodeToMatch[1];
             let inputNodeNameToChange = inputNodeToChange[1];
 
+            // only record data if the names match
             if (inputNodeNameToMatch == inputNodeNameToChange)
             {
                 // nodes
@@ -482,6 +503,32 @@ DynamoEyedropper.getInputsInCommon = async function()
         });
 
     });
+
+    // for each of the match values, determine if any are different from the change values
+    for (let i = 0; i < dynamoInputNodeValuesToMatch.length; i++)
+    {
+        for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
+        {
+            dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
+            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
+            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
+
+            /* TODO: why are the inputs identical?
+            // if the values are different, push data to various arrays
+            if (dynamoInputNodeValuesToMatch[i] != dynamoInputNodeValuesToChange[i])
+            {
+                dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[i]);
+                dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch);
+                dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange);
+            }
+            */
+        }
+    }
+
+    GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyAfter);
+
+    console.log("Before values: " + dynamoInputValuesToModifyBefore);
+    console.log("After values: " + dynamoInputValuesToModifyAfter);
 }
 
 // get input values given an array of GUIDs, directly from the .json DYN
@@ -506,4 +553,20 @@ DynamoEyedropper.getInputValueToChangeFromGUID = function(nodeGUID)
             dynamoInputNodeValuesToChange.push(dynamoFileToChange["Inputs"][i]["Value"]);
         }
     }
+}
+
+DynamoEyedropper.createNodesAndValuesObject = function(arrayOfGUIDs, arrayOfValues)
+{
+    let newObject = new Array();
+
+    for (let i = 0; i < arrayOfGUIDs.length; i++)
+    {
+        let guid = arrayOfGUIDs[i];
+        let value = arrayOfValues[i];
+
+        newObject.push({guid : value});
+        //let newObject = { "arrayOfGUIDs": arrayOfGUIDs[i], "arrayOfValues" : arrayOfValues[i] };
+    }
+
+    return newObject;
 }
