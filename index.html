@@ -11,17 +11,17 @@
         <script type="text/javascript" src="https://formit3d.github.io/PropertiesPlus/PropertiesPlus_Client.js"></script>
         <script type="text/javascript" src="DynamoEyedropper.js"></script>
         <script type="text/javascript">
-        FormItInterface.Initialize(function () {
+        FormItInterface.Initialize(async function () {
 
             // subscribe to the message sent when units are changed
-            FormItInterface.SubscribeMessage("FormIt.Message.kSelectionsChanged", function(msg)
+            FormItInterface.SubscribeMessage("FormIt.Message.kSelectionsChanged", async function(msg)
             {
                 var jsonMessage = JSON.parse(msg);
 
                 if (bIsSelectionForMatchInProgress)
                 {
                     // when the FormIt selection changes, automatically update the plugin UI
-                    DynamoEyedropper.updateUIForMatchObject();
+                    await DynamoEyedropper.updateUIForMatchObject();
 
                     bIsSelectionForMatchInProgress = false;
                 }
@@ -29,7 +29,7 @@
                 if (bIsSelectionForChangeInProgress)
                 {
                     // when the FormIt selection changes, automatically update the plugin UI
-                    DynamoEyedropper.updateUIForChangeObject();
+                    await DynamoEyedropper.updateUIForChangeObject();
 
                     bIsSelectionForChangeInProgress = false;
                 }
