@@ -144,6 +144,7 @@ DynamoEyedropper.initializeUI = async function()
         }
     
         window.FormItInterface.CallMethod("DynamoEyedropper.setDynamoData", args);
+
     }).element);
 
     // update the review and apply section if necessary
@@ -182,6 +183,8 @@ DynamoEyedropper.setMatchObjectToActiveState = async function()
 
     if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
     {
+        console.log("Both objects are present, starting comparison check...");
+
         await DynamoEyedropper.updateUIForComparisonCheck();
     }
     else
@@ -235,6 +238,8 @@ DynamoEyedropper.setChangeObjectToActiveState = async function()
 
     if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
     {
+        console.log("Both objects are present, starting comparison check...");
+
         await DynamoEyedropper.updateUIForComparisonCheck();
     }
     else
@@ -348,6 +353,7 @@ DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
         console.log("\n" + message);
 
         bIsMatchObjectAvailable = false;
+
         DynamoEyedropper.setMatchObjectToSelectingState();
         await DynamoEyedropper.updateUIForComparisonCheck();
 
@@ -356,11 +362,6 @@ DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
     else
     {
         await DynamoEyedropper.setMatchObjectToActiveState();
-
-        if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
-        {
-            await DynamoEyedropper.updateUIForComparisonCheck();
-        }
     }
 }
 
@@ -391,11 +392,6 @@ DynamoEyedropper.tryGetDynamoObjectToChange = async function()
     else
     {
         await DynamoEyedropper.setChangeObjectToActiveState();
-
-        if (bIsMatchObjectAvailable && bIsChangeObjectAvailable)
-        {
-            await DynamoEyedropper.updateUIForComparisonCheck();
-        }
     }
 }
 
@@ -474,55 +470,48 @@ DynamoEyedropper.getInputsInCommon = async function()
 
     // for each input node in the list to match,
     // look for the same element by name in the list of input nodes to change
-    dynamoInputNodesToMatch.forEach(inputNodeToMatch => {
+    for (let i = 0; i < dynamoInputNodesToChange.length; i++)
+    {
+        let inputNodeNameToMatch = dynamoInputNodesToMatch[i][1];
+        let inputNodeNameToChange = dynamoInputNodesToChange[i][1];
 
-        dynamoInputNodesToChange.forEach(inputNodeToChange => {
-            
-            let inputNodeNameToMatch = inputNodeToMatch[1];
-            let inputNodeNameToChange = inputNodeToChange[1];
+        // only record data if the names match
+        if (inputNodeNameToMatch == inputNodeNameToChange)
+        {
+            // nodes
+            dynamoInputNodesInCommon.push(dynamoInputNodesToChange[i]);
 
-            // only record data if the names match
-            if (inputNodeNameToMatch == inputNodeNameToChange)
-            {
-                // nodes
-                dynamoInputNodesInCommon.push(inputNodeToChange);
+            // GUIDs
+            dynamoInputNodeGUIDsToMatch.push(dynamoInputNodesToMatch[i][0]);
+            dynamoInputNodeGUIDsToChange.push(dynamoInputNodesToChange[i][0]);
 
-                // GUIDs
-                dynamoInputNodeGUIDsToMatch.push(inputNodeToMatch[0]);
-                dynamoInputNodeGUIDsToChange.push(inputNodeToChange[0]);
+            // names
+            dynamoInputNodeNamesToMatch.push(dynamoInputNodesToMatch[i][1]);
+            dynamoInputNodeNamesToChange.push(dynamoInputNodesToChange[i][1]);
 
-                // names
-                dynamoInputNodeNamesToMatch.push(inputNodeToMatch[1]);
-                dynamoInputNodeNamesToChange.push(inputNodeToChange[1]);
-
-                // values
-                dynamoInputNodeValuesToMatch.push(DynamoEyedropper.getInputValueToMatchFromGUID(inputNodeToMatch[0]));
-                dynamoInputNodeValuesToChange.push(DynamoEyedropper.getInputValueToChangeFromGUID(inputNodeToChange[0]));
-            }
-
-        });
-
-    });
+            // values
+            dynamoInputNodeValuesToMatch.push(DynamoEyedropper.getInputValueToMatchFromGUID(dynamoInputNodesToMatch[i][0]));
+            dynamoInputNodeValuesToChange.push(DynamoEyedropper.getInputValueToChangeFromGUID(dynamoInputNodesToChange[i][0]));
+        }
+    }
 
     // for each of the match values, determine if any are different from the change values
-    for (let i = 0; i < dynamoInputNodeValuesToMatch.length; i++)
-    {
-        for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
-        {
-            dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
-            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
-            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
 
-            /* TODO: why are the inputs identical?
-            // if the values are different, push data to various arrays
-            if (dynamoInputNodeValuesToMatch[i] != dynamoInputNodeValuesToChange[i])
-            {
-                dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[i]);
-                dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch);
-                dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange);
-            }
-            */
+    for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
+    {
+        dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
+        dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
+        dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
+
+        /* TODO: why are the inputs identical?
+        // if the values are different, push data to various arrays
+        if (dynamoInputNodeValuesToMatch[i] != dynamoInputNodeValuesToChange[i])
+        {
+            dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[i]);
+            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch);
+            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange);
         }
+        */
     }
 
     GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyAfter);
@@ -538,7 +527,7 @@ DynamoEyedropper.getInputValueToMatchFromGUID = function(nodeGUID)
     {
         if (dynamoFileToMatch["Inputs"][i]["Id"] == nodeGUID)
         {
-            dynamoInputNodeValuesToMatch.push(dynamoFileToMatch["Inputs"][i]["Value"]);
+            return dynamoFileToMatch["Inputs"][i]["Value"];
         }
     }
 }
@@ -550,23 +539,25 @@ DynamoEyedropper.getInputValueToChangeFromGUID = function(nodeGUID)
     {
         if (dynamoFileToChange["Inputs"][i]["Id"] == nodeGUID)
         {
-            dynamoInputNodeValuesToChange.push(dynamoFileToChange["Inputs"][i]["Value"]);
+            return dynamoFileToChange["Inputs"][i]["Value"];
         }
     }
 }
 
 DynamoEyedropper.createNodesAndValuesObject = function(arrayOfGUIDs, arrayOfValues)
 {
-    let newObject = new Array();
+    let objectArray = new Array();
 
     for (let i = 0; i < arrayOfGUIDs.length; i++)
     {
         let guid = arrayOfGUIDs[i];
         let value = arrayOfValues[i];
 
-        newObject.push({guid : value});
+        let newObject = { };
+        newObject[guid] = value;
+        objectArray.push(newObject);
         //let newObject = { "arrayOfGUIDs": arrayOfGUIDs[i], "arrayOfValues" : arrayOfValues[i] };
     }
 
-    return newObject;
+    return objectArray;
 }
