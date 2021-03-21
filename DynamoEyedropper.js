@@ -110,7 +110,7 @@ DynamoEyedropper.initializeUI = async function()
 
     // when not all selections have been fulfilled
     let missingSelectionsDiv = contentContainer.appendChild(document.createElement('p'));
-    missingSelectionsDiv.innerHTML = 'Select objects above to continue...';
+    missingSelectionsDiv.innerHTML = 'Select objects above to continue.';
     missingSelectionsDiv.id = missingSelectionsDivID;
     contentContainer.appendChild(missingSelectionsDiv);
 
@@ -122,7 +122,7 @@ DynamoEyedropper.initializeUI = async function()
 
     // when the selections are fulfilled, compatible, but identical
     let identicalInputsDiv = contentContainer.appendChild(document.createElement('p'));
-    identicalInputsDiv.innerHTML = 'All input values are identical, so there is nothing to change.';
+    identicalInputsDiv.innerHTML = 'All input values are identical.';
     identicalInputsDiv.id = identicalInputsDivID;
     contentContainer.appendChild(identicalInputsDiv);
 
@@ -538,7 +538,7 @@ DynamoEyedropper.getInputsInCommon = async function()
         }
     }
 
-    GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyAfter);
+    GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyBefore);
 
     console.log("Before values: " + dynamoInputValuesToModifyBefore);
     console.log("After values: " + dynamoInputValuesToModifyAfter);
@@ -559,18 +559,16 @@ DynamoEyedropper.getNodeInputValue = function(dynFile, nodeGUID)
 
 DynamoEyedropper.createNodesAndValuesObject = function(arrayOfGUIDs, arrayOfValues)
 {
-    let objectArray = new Array();
+    var object = {};
 
     for (let i = 0; i < arrayOfGUIDs.length; i++)
     {
         let guid = arrayOfGUIDs[i];
-        let value = Number(arrayOfValues[i]);
+        let value = arrayOfValues[i];
 
-        let newObject = { };
-        newObject[guid] = value;
-        objectArray.push(newObject);
+        object[guid] = value;
         //let newObject = { "arrayOfGUIDs": arrayOfGUIDs[i], "arrayOfValues" : arrayOfValues[i] };
     }
 
-    return objectArray;
+    return object;
 }
