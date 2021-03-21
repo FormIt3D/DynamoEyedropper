@@ -21,6 +21,7 @@ const dynamoObjectToChangeInputCountID = 'dynamoObjectToChangeInputCount';
 // review and apply section
 const missingSelectionsDivID = 'noSelectionsDiv';
 const incompatibleSelectionDivID = 'incompatibleSelectionDiv';
+const identicalInputsDivID = 'identicalInputsDiv';
 const reviewAndApplyDetailsDivID = 'reviewAndApplySection';
 const affectedInputsCountID = 'affectedInputsCount';
 const affectedInputsListID = 'affectedInputsList';
@@ -29,8 +30,8 @@ const selectionMessagePrefixText = 'Select a Dynamo object ';
 const objectIDPrefixText = 'Dynamo history ID: ';
 const groupNamePrefixText = 'Group name: ';
 const inputCountPrefixText = 'Input count: ';
-const affectedInputsPrefixText = 'Matching inputs: ';
-const affectedInputsListPrefixText = 'Inputs to be modified: \n';
+const affectedInputsPrefixText = 'Inputs to be modified: ';
+const affectedInputsListPrefixText = 'Names and values: \n';
 const objectIDSelectingText = 'Selecting...';
 const notSetText = '(not set)';
 
@@ -118,6 +119,12 @@ DynamoEyedropper.initializeUI = async function()
     incompatibleSelectionsDiv.innerHTML = 'No common inputs found in the selected Dynamo objects.';
     incompatibleSelectionsDiv.id = incompatibleSelectionDivID;
     contentContainer.appendChild(incompatibleSelectionsDiv);
+
+    // when the selections are fulfilled, compatible, but identical
+    let identicalInputsDiv = contentContainer.appendChild(document.createElement('p'));
+    identicalInputsDiv.innerHTML = 'All input values are identical, so there is nothing to change.';
+    identicalInputsDiv.id = identicalInputsDivID;
+    contentContainer.appendChild(identicalInputsDiv);
 
     // create the affected inputs container
     // will be hidden until both selections are valid
@@ -279,20 +286,34 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
             document.getElementById(reviewAndApplyDetailsDivID).className = 'hide';
             document.getElementById(incompatibleSelectionDivID).className = 'body';
             document.getElementById(missingSelectionsDivID).className = 'hide';
+            document.getElementById(identicalInputsDivID).className = 'hide';
 
             console.log("No matching inputs found for comparison.");
         }
         // common input nodes were found
         else
         {
-            document.getElementById(reviewAndApplyDetailsDivID).className = 'body';
-            document.getElementById(missingSelectionsDivID).className = 'hide';
-            document.getElementById(incompatibleSelectionDivID).className = 'hide';
-
-            document.getElementById(affectedInputsCountID).innerHTML = affectedInputsPrefixText + dynamoInputNodesInCommon.length;
-            document.getElementById(affectedInputsListID).innerHTML = affectedInputsListPrefixText + JSON.stringify(dynamoInputNodeNamesToMatch);
-            
-            console.log("Number of common inputs: " + dynamoInputNodesInCommon.length);
+            // common nodes were found, but their values are identical
+            if (dynamoInputNamesToModify.length == 0)
+            {
+                document.getElementById(reviewAndApplyDetailsDivID).className = 'hide';
+                document.getElementById(missingSelectionsDivID).className = 'hide';
+                document.getElementById(incompatibleSelectionDivID).className = 'hide';
+                document.getElementById(identicalInputsDivID).className = 'body';
+            }
+            // values were different, so we can show the apply button
+            else
+            {
+                document.getElementById(reviewAndApplyDetailsDivID).className = 'body';
+                document.getElementById(missingSelectionsDivID).className = 'hide';
+                document.getElementById(incompatibleSelectionDivID).className = 'hide';
+                document.getElementById(identicalInputsDivID).className = 'hide';
+    
+                document.getElementById(affectedInputsCountID).innerHTML = affectedInputsPrefixText + dynamoInputNamesToModify.length;
+                document.getElementById(affectedInputsListID).innerHTML = affectedInputsListPrefixText + JSON.stringify(dynamoInputNamesToModify);
+                
+                console.log("Number of inputs to modify: " + dynamoInputNamesToModify.length);
+            }
         }
     }
     // missing one or both objects
@@ -301,6 +322,7 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
         document.getElementById(missingSelectionsDivID).className = 'body';
         document.getElementById(incompatibleSelectionDivID).className = 'hide';
         document.getElementById(reviewAndApplyDetailsDivID).className = 'hide';
+        document.getElementById(identicalInputsDivID).className = 'hide';
     }
 
 }
@@ -329,7 +351,9 @@ let dynamoInputNodeValuesToChange = new Array();
 
 let dynamoInputNodesInCommon = new Array();
 
+// only the nodes that have unique values to be changed
 let dynamoInputGUIDsToModify = new Array();
+let dynamoInputNamesToModify = new Array();
 let dynamoInputValuesToModifyBefore = new Array();
 let dynamoInputValuesToModifyAfter = new Array();
 
@@ -413,7 +437,7 @@ DynamoEyedropper.getDynamoInputsToMatch = async function()
     // if we get here, the selection is valid for the next steps
     dynamoInputNodesToMatch = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToMatch, true);
 
-    console.log("Dynamo inputs: " + JSON.stringify(dynamoInputNodesToMatch));
+    //console.log("Dynamo inputs: " + JSON.stringify(dynamoInputNodesToMatch));
 }
 
 // get all input nodes from the Dynamo object to match
@@ -434,7 +458,7 @@ DynamoEyedropper.getDynamoInputsToChange = async function()
     // if we get here, the selection is valid for the next steps
     dynamoInputNodesToChange = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
 
-    console.log("Dynamo inputs: " + JSON.stringify(dynamoInputNodesToChange));
+    //console.log("Dynamo inputs: " + JSON.stringify(dynamoInputNodesToChange));
 }
 
 // get the inputs that are in common between the two selected Dynamo objects
@@ -452,6 +476,7 @@ DynamoEyedropper.getInputsInCommon = async function()
     dynamoInputNodeValuesToChange = [];
 
     dynamoInputGUIDsToModify = [];
+    dynamoInputNamesToModify = [];
     dynamoInputValuesToModifyBefore = [];
     dynamoInputValuesToModifyAfter = [];
 
@@ -492,8 +517,8 @@ DynamoEyedropper.getInputsInCommon = async function()
                 dynamoInputNodeNamesToChange.push(inputNodeToChange[1]);
     
                 // values
-                dynamoInputNodeValuesToMatch.push(DynamoEyedropper.getInputValueToMatchFromGUID(inputNodeToMatch[0]));
-                dynamoInputNodeValuesToChange.push(DynamoEyedropper.getInputValueToChangeFromGUID(inputNodeToChange[0]));
+                dynamoInputNodeValuesToMatch.push(DynamoEyedropper.getNodeInputValue(dynamoFileToMatch, inputNodeToMatch[0]));
+                dynamoInputNodeValuesToChange.push(DynamoEyedropper.getNodeInputValue(dynamoFileToChange, inputNodeToChange[0]));
             }
 
         });
@@ -503,19 +528,14 @@ DynamoEyedropper.getInputsInCommon = async function()
 
     for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
     {
-        dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
-        dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
-        dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
-
-        /* TODO: why are the inputs identical?
         // if the values are different, push data to various arrays
-        if (dynamoInputNodeValuesToMatch[i] != dynamoInputNodeValuesToChange[i])
+        if (dynamoInputNodeValuesToMatch[j] != dynamoInputNodeValuesToChange[j])
         {
-            dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[i]);
-            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch);
-            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange);
+            dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
+            dynamoInputNamesToModify.push(dynamoInputNodeNamesToChange[j]);
+            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
+            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
         }
-        */
     }
 
     GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyAfter);
@@ -525,25 +545,14 @@ DynamoEyedropper.getInputsInCommon = async function()
 }
 
 // get input values given an array of GUIDs, directly from the .json DYN
-DynamoEyedropper.getInputValueToMatchFromGUID = function(nodeGUID)
-{
-    for (let i = 0; i < dynamoFileToMatch["Inputs"].length; i++)
+DynamoEyedropper.getNodeInputValue = function(dynFile, nodeGUID)
+{    
+    for (let i = 0; i < dynFile.Nodes.length; i++)
     {
-        if (dynamoFileToMatch["Inputs"][i]["Id"] == nodeGUID)
+        let node = dynFile.Nodes[i];
+        if (node["Id"] == nodeGUID)
         {
-            return dynamoFileToMatch["Inputs"][i]["Value"];
-        }
-    }
-}
-
-// get input values given an array of GUIDs, directly from the .json DYN
-DynamoEyedropper.getInputValueToChangeFromGUID = function(nodeGUID)
-{
-    for (let i = 0; i < dynamoFileToChange["Inputs"].length; i++)
-    {
-        if (dynamoFileToChange["Inputs"][i]["Id"] == nodeGUID)
-        {
-            return dynamoFileToChange["Inputs"][i]["Value"];
+            return node["InputValue"];
         }
     }
 }
@@ -555,7 +564,7 @@ DynamoEyedropper.createNodesAndValuesObject = function(arrayOfGUIDs, arrayOfValu
     for (let i = 0; i < arrayOfGUIDs.length; i++)
     {
         let guid = arrayOfGUIDs[i];
-        let value = arrayOfValues[i];
+        let value = Number(arrayOfValues[i]);
 
         let newObject = { };
         newObject[guid] = value;
