@@ -42,6 +42,7 @@ DynamoEyedropper.initializeUI = async function()
     let contentContainer = document.createElement('div');
     contentContainer.id = 'contentContainer';
     contentContainer.className = 'contentContainer'
+    contentContainer.style.overflowY = 'scroll';
     window.document.body.appendChild(contentContainer);
 
     // create the header
@@ -137,10 +138,17 @@ DynamoEyedropper.initializeUI = async function()
     affectedInputsCountDiv.id = affectedInputsCountID;
     reviewAndApplyDetailsDiv.appendChild(affectedInputsCountDiv);
 
+    /*
     let affectedInputsListDiv = document.createElement('div');
     affectedInputsListDiv.innerHTML = affectedInputsListPrefixText + JSON.stringify(dynamoInputNodesInCommon);
     affectedInputsListDiv.id = affectedInputsListID;
     reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv);
+    */
+
+    let affectedInputsListDiv = document.createElement('div');
+    affectedInputsListDiv.id = affectedInputsListID;
+    reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv)
+
 
     // create the button to apply the changes
     reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes', function()
@@ -301,7 +309,7 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
                 document.getElementById(incompatibleSelectionDivID).className = 'hide';
                 document.getElementById(identicalInputsDivID).className = 'body';
             }
-            // values were different, so we can show the apply button
+            // common node values are different, so we can show the review & apply section
             else
             {
                 document.getElementById(reviewAndApplyDetailsDivID).className = 'body';
@@ -310,7 +318,33 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
                 document.getElementById(identicalInputsDivID).className = 'hide';
     
                 document.getElementById(affectedInputsCountID).innerHTML = affectedInputsPrefixText + dynamoInputNamesToModify.length;
-                document.getElementById(affectedInputsListID).innerHTML = affectedInputsListPrefixText + JSON.stringify(dynamoInputNamesToModify);
+
+                // clear the list of affected inputs first
+                let affectedInputsListDiv = document.getElementById(affectedInputsListID);
+
+                while (affectedInputsListDiv.hasChildNodes()) {
+                    affectedInputsListDiv.removeChild(affectedInputsListDiv.lastChild);
+                }
+
+                // create a series of unordered lists to display
+                for (let i = 0; i < dynamoInputNamesToModify.length; i++)
+                {
+                    let ul = document.createElement('ul');
+                    ul.innerHTML = dynamoInputNamesToModify[i];
+                    affectedInputsListDiv.appendChild(ul);
+
+                    let ul2 = document.createElement('ul');
+                    ul.appendChild(ul2);
+
+                    let liBefore = document.createElement('li');
+                    liBefore.innerHTML = 'Before: ' + dynamoInputValuesToModifyBefore[i];
+                    ul2.appendChild(liBefore);
+
+                    let liAfter = document.createElement('li');
+                    liAfter.innerHTML = 'After: ' + dynamoInputValuesToModifyAfter[i];
+                    ul2.appendChild(liAfter);
+
+                }
                 
                 console.log("Number of inputs to modify: " + dynamoInputNamesToModify.length);
             }
@@ -525,7 +559,6 @@ DynamoEyedropper.getInputsInCommon = async function()
     });
 
     // for each of the match values, determine if any are different from the change values
-
     for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
     {
         // if the values are different, push data to various arrays
@@ -533,12 +566,12 @@ DynamoEyedropper.getInputsInCommon = async function()
         {
             dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
             dynamoInputNamesToModify.push(dynamoInputNodeNamesToChange[j]);
-            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToMatch[j]);
-            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToChange[j]);
+            dynamoInputValuesToModifyBefore.push(dynamoInputNodeValuesToChange[j]);
+            dynamoInputValuesToModifyAfter.push(dynamoInputNodeValuesToMatch[j]);
         }
     }
 
-    GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyBefore);
+    GUIDsAndValuesToModify = DynamoEyedropper.createNodesAndValuesObject(dynamoInputGUIDsToModify, dynamoInputValuesToModifyAfter);
 
     console.log("Before values: " + dynamoInputValuesToModifyBefore);
     console.log("After values: " + dynamoInputValuesToModifyAfter);
