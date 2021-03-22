@@ -27,9 +27,9 @@ const affectedInputsCountID = 'affectedInputsCount';
 const affectedInputsListID = 'affectedInputsList';
 
 const selectionMessagePrefixText = 'Select a Dynamo object ';
-const objectIDPrefixText = 'Dynamo history ID: ';
-const groupNamePrefixText = 'Group name: ';
-const inputCountPrefixText = 'Input count: ';
+const objectIDPrefixText = 'Dynamo History ID: ';
+const groupNamePrefixText = 'Dynamo Group Name: ';
+const inputCountPrefixText = 'Input Nodes: ';
 const affectedInputsPrefixText = 'Inputs to be modified: ';
 const affectedInputsListPrefixText = 'Names and values: \n';
 const objectIDSelectingText = 'Selecting...';
@@ -47,6 +47,12 @@ DynamoEyedropper.initializeUI = async function()
 
     // create the header
     contentContainer.appendChild(new FormIt.PluginUI.HeaderModule('Dynamo Eyedropper', 'Apply input values when possible between two Dynamo objects.').element);
+
+    // create the windows-only message
+    let windowsOnlyMessage = document.createElement('div');
+    windowsOnlyMessage.style.fontStyle = 'italic';
+    windowsOnlyMessage.innerHTML = 'FormIt for Windows only.';
+    contentContainer.appendChild(windowsOnlyMessage);
 
     /* object to match */
 
@@ -151,7 +157,7 @@ DynamoEyedropper.initializeUI = async function()
 
 
     // create the button to apply the changes
-    reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes', function()
+    reviewAndApplyDetailsDiv.appendChild(new FormIt.PluginUI.Button('Apply Changes + Run', function()
     {
         var args = {
         "dynamoHistoryToModify" : dynamoHistoryIDToChange,
@@ -317,11 +323,12 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
                 document.getElementById(incompatibleSelectionDivID).className = 'hide';
                 document.getElementById(identicalInputsDivID).className = 'hide';
     
+                // enable and update the list of nodes that will be changed, and how
                 document.getElementById(affectedInputsCountID).innerHTML = affectedInputsPrefixText + dynamoInputNamesToModify.length;
 
-                // clear the list of affected inputs first
                 let affectedInputsListDiv = document.getElementById(affectedInputsListID);
-
+                
+                // clear the list of affected inputs first
                 while (affectedInputsListDiv.hasChildNodes()) {
                     affectedInputsListDiv.removeChild(affectedInputsListDiv.lastChild);
                 }
@@ -332,17 +339,17 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
                     let ul = document.createElement('ul');
                     ul.innerHTML = dynamoInputNamesToModify[i];
                     affectedInputsListDiv.appendChild(ul);
+                    ul.style.padding = '0px 0px 0px 0px';
+                    ul.style.fontStyle = 'italic';
 
                     let ul2 = document.createElement('ul');
                     ul.appendChild(ul2);
 
-                    let liBefore = document.createElement('li');
-                    liBefore.innerHTML = 'Before: ' + dynamoInputValuesToModifyBefore[i];
-                    ul2.appendChild(liBefore);
-
-                    let liAfter = document.createElement('li');
-                    liAfter.innerHTML = 'After: ' + dynamoInputValuesToModifyAfter[i];
-                    ul2.appendChild(liAfter);
+                    let valueComparisonLi = document.createElement('li');
+                    valueComparisonLi.className = 'codeSnippet';
+                    valueComparisonLi.style.fontStyle = 'normal';
+                    valueComparisonLi.innerHTML = dynamoInputValuesToModifyBefore[i] + ' \u279e ' + dynamoInputValuesToModifyAfter[i];
+                    ul2.appendChild(valueComparisonLi);
 
                 }
                 
