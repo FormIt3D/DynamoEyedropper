@@ -584,7 +584,9 @@ DynamoEyedropper.getInputsInCommon = async function()
     console.log("After values: " + dynamoInputValuesToModifyAfter);
 }
 
-// get input values given an array of GUIDs, directly from the .json DYN
+// get the input value from the node GUID in the given Dynamo file
+// TODO: replace this with new FormIt.Dynamo.GetInputNode(nHistoryId, GUID) after v22 ships
+// see FORMIT-11493
 DynamoEyedropper.getNodeInputValue = function(dynFile, nodeGUID)
 {    
     for (let i = 0; i < dynFile.Nodes.length; i++)
