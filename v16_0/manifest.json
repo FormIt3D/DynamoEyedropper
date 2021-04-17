@@ -1,0 +1,10 @@
+{
+    "PluginName": "Dynamo Eyedropper",
+    "PluginDescription": "Apply inputs between similar Dynamo objects.",
+    "PluginType": "Panel",
+    "Scripts": [
+        "https://formit3d.github.io/FormItExamplePlugins/SharedPluginFiles/PluginUtils18_0.js"
+    ]
+    ,"Panel": "PLUGINLOCATION/index.html",
+    "PanelIcon": "PLUGINLOCATION/img/dynamo_eyedropper@2x.png"
+}
