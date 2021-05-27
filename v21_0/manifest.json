@@ -6,5 +6,6 @@
         "PLUGINLOCATION/DynamoEyedropper_Client.js"
     ]
     ,"Panel": "PLUGINLOCATION/index.html",
-    "PanelIcon": "PLUGINLOCATION/img/dynamo_eyedropper@2x.png"
+    "PanelIcon": "PLUGINLOCATION/img/dynamo_eyedropper@2x.png",
+    "Platforms": ["Windows"]
 }
