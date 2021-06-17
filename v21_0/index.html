@@ -13,7 +13,7 @@
         <script type="text/javascript">
         FormItInterface.Initialize(async function () {
 
-            // subscribe to the message sent when units are changed
+            // subscribe to the message sent when selection is changed
             FormItInterface.SubscribeMessage("FormIt.Message.kSelectionsChanged", async function(msg)
             {
                 var jsonMessage = JSON.parse(msg);
