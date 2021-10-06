@@ -48,12 +48,6 @@ DynamoEyedropper.initializeUI = async function()
     // create the header
     contentContainer.appendChild(new FormIt.PluginUI.HeaderModule('Dynamo Eyedropper', 'Apply input values when possible between two Dynamo objects.').element);
 
-    // create the windows-only message
-    let windowsOnlyMessage = document.createElement('div');
-    windowsOnlyMessage.style.fontStyle = 'italic';
-    windowsOnlyMessage.innerHTML = 'FormIt for Windows only.';
-    contentContainer.appendChild(windowsOnlyMessage);
-
     /* object to match */
 
     // create the object to match subheader
