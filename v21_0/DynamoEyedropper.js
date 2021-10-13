@@ -27,6 +27,8 @@ const affectedInputsCountID = 'affectedInputsCount';
 const affectedInputsListID = 'affectedInputsList';
 
 const selectionMessagePrefixText = 'Select a Dynamo object ';
+DynamoEyedropper.selectionSuccessMessageText = 'Selection received!'
+DynamoEyedropper.selectionFailureMessageText = 'The selection must be a Dynamo Group instance. \nTry again, and select a Dynamo Group instance when prompted.'
 const objectIDPrefixText = 'Dynamo History ID: ';
 const groupNamePrefixText = 'Dynamo Group Name: ';
 const inputCountPrefixText = 'Input Nodes: ';
@@ -138,13 +140,6 @@ DynamoEyedropper.initializeUI = async function()
     affectedInputsCountDiv.id = affectedInputsCountID;
     reviewAndApplyDetailsDiv.appendChild(affectedInputsCountDiv);
 
-    /*
-    let affectedInputsListDiv = document.createElement('div');
-    affectedInputsListDiv.innerHTML = affectedInputsListPrefixText + JSON.stringify(dynamoInputNodesInCommon);
-    affectedInputsListDiv.id = affectedInputsListID;
-    reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv);
-    */
-
     let affectedInputsListDiv = document.createElement('div');
     affectedInputsListDiv.id = affectedInputsListID;
     reviewAndApplyDetailsDiv.appendChild(affectedInputsListDiv)
@@ -173,19 +168,7 @@ DynamoEyedropper.initializeUI = async function()
 
 DynamoEyedropper.updateUIForMatchObject = async function()
 {
-    // try to get the selected history
-    dynamoHistoryIDToMatch = await FormIt.Dynamo.GetSelectedDynamoHistory();
-    dynamoGroupNameToMatch = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToMatch);
-    dynamoInputNodesToMatch = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToMatch, true);
-
-    if (dynamoHistoryIDToMatch == 4294967295)
-    {
-        await DynamoEyedropper.setMatchObjectToUnsetState();
-    }
-    else
-    {
-        await DynamoEyedropper.setMatchObjectToActiveState();
-    }
+   DynamoEyedropper.tryGetDynamoObjectToMatch();
 }
 
 DynamoEyedropper.setMatchObjectToActiveState = async function()
@@ -228,19 +211,7 @@ DynamoEyedropper.setMatchObjectToUnsetState = function()
 
 DynamoEyedropper.updateUIForChangeObject = async function()
 {
-    // try to get the selected history
-    dynamoHistoryIDToChange = await FormIt.Dynamo.GetSelectedDynamoHistory();
-    dynamoGroupNameToChange = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToChange);
-    dynamoInputNodesToChange = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
-
-    if (dynamoHistoryIDToChange == 4294967295)
-    {
-        await DynamoEyedropper.setChangeObjectToUnsetState();
-    }
-    else
-    {
-        await DynamoEyedropper.setChangeObjectToActiveState();
-    }
+    DynamoEyedropper.tryGetDynamoObjectToChange();
 }
 
 DynamoEyedropper.setChangeObjectToActiveState = async function()
@@ -364,6 +335,14 @@ DynamoEyedropper.updateUIForComparisonCheck = async function()
 
 /*** application code - runs asynchronously from plugin process to communicate with FormIt ***/
 
+// this number is the invalid ID used to determine
+// whether the selected object is a Dynamo history
+DynamoEyedropper.invalidHistoryID = 4294967295;
+
+// store the notification handles so they can be dismissed to prevent stacking notifications
+DynamoEyedropper.selectionInProgressNotificationHandle = undefined;
+DynamoEyedropper.selectionFailedNotificationHandle = undefined;
+
 // dynamo data
 let bIsMatchObjectAvailable;
 let bIsChangeObjectAvailable;
@@ -377,8 +356,8 @@ let dynamoInputNodeNamesToMatch = new Array();
 let dynamoInputNodeValuesToMatch = new Array();
 
 let dynamoFileToChange;
-let dynamoHistoryIDToChange;
-let dynamoGroupNameToChange;
+let dynamoHistoryIDToChange = DynamoEyedropper.invalidHistoryID;
+let dynamoGroupNameToChange = DynamoEyedropper.invalidHistoryID;
 let dynamoInputNodesToChange;
 let dynamoInputNodeGUIDsToChange = new Array();
 let dynamoInputNodeNamesToChange = new Array();
@@ -394,7 +373,7 @@ let dynamoInputValuesToModifyAfter = new Array();
 
 let GUIDsAndValuesToModify = {};
 
-// get the current history, query the selection, and report the number of items successfully selected
+// try to get the match object
 DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
 {
     // get the Dynamo history ID from the selection
@@ -402,14 +381,24 @@ DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
     dynamoGroupNameToMatch = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToMatch);
     dynamoInputNodesToMatch = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToMatch, true);
 
-    // if the selection didn't return a valid object, put the user in a select mode
-    if (dynamoHistoryIDToMatch == 4294967295)
+    // selection was successful (result was not invalid)
+    if (dynamoHistoryIDToMatch != DynamoEyedropper.invalidHistoryID)
     {
+        await DynamoEyedropper.setMatchObjectToActiveState();
+
         await FormIt.Selection.ClearSelections();
 
-        let message = selectionMessagePrefixText + "to match";
-        await FormIt.UI.ShowNotification(message, FormIt.NotificationType.Information, 0);
-        console.log("\n" + message);
+        // clean up old notification handles, and show a new notification
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionInProgressNotificationHandle);    
+        DynamoEyedropper.selectionInProgressNotificationHandle = undefined;
+        await FormIt.UI.ShowNotification(DynamoEyedropper.selectionSuccessMessageText, FormIt.NotificationType.Success, 0);
+        DynamoEyedropper.selectionFailedNotificationHandle = undefined;
+    }
+    // if the selection isn't valid, and if the in-progress notification handle hasn't been defined,
+    // put the user back into selection mode
+    else if (dynamoHistoryIDToMatch == DynamoEyedropper.invalidHistoryID && DynamoEyedropper.selectionInProgressNotificationHandle == undefined)
+    {
+        await FormIt.Selection.ClearSelections();
 
         bIsMatchObjectAvailable = false;
         bIsSelectionForMatchInProgress = true;
@@ -417,14 +406,30 @@ DynamoEyedropper.tryGetDynamoObjectToMatch = async function()
         DynamoEyedropper.setMatchObjectToSelectingState();
         await DynamoEyedropper.updateUIForComparisonCheck();
 
+        // clean up old notification handles, and show a new notification
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionFailedNotificationHandle);
+        DynamoEyedropper.selectionFailedNotificationHandle = undefined;
+        DynamoEyedropper.selectionInProgressNotificationHandle = await FormIt.UI.ShowNotification(selectionMessagePrefixText + "to match...", FormIt.NotificationType.Information, 0);
     }
-    else
+    // otherwise, this is the second time the user is trying to select
+    // if it doesn't work at this point, consider the selection unset and end the selection session
+    else if (dynamoHistoryIDToMatch == DynamoEyedropper.invalidHistoryID && DynamoEyedropper.selectionInProgressNotificationHandle)
     {
-        await DynamoEyedropper.setMatchObjectToActiveState();
+        await FormIt.Selection.ClearSelections();
+
+        bIsMatchObjectAvailable = false;
+        bIsSelectionForMatchInProgress = false;
+
+        DynamoEyedropper.setMatchObjectToUnsetState();
+
+        // clean up old notification handles, and show a new notification
+        DynamoEyedropper.selectionFailedNotificationHandle = await FormIt.UI.ShowNotification(DynamoEyedropper.selectionFailureMessageText, FormIt.NotificationType.Error, 0);
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionInProgressNotificationHandle);
+        DynamoEyedropper.selectionInProgressNotificationHandle = undefined;
     }
 }
 
-// get the current history, query the selection, and report the number of items successfully selected
+// try to get the change object
 DynamoEyedropper.tryGetDynamoObjectToChange = async function()
 {
     // get the Dynamo history ID from the selection
@@ -432,14 +437,24 @@ DynamoEyedropper.tryGetDynamoObjectToChange = async function()
     dynamoGroupNameToChange = await FormIt.Dynamo.GetDynamoGroupName(dynamoHistoryIDToChange);
     dynamoInputNodesToChange = await FormIt.Dynamo.GetInputNodes(dynamoHistoryIDToChange, true);
 
-    // if the selection didn't return a valid object, put the user in a select mode
-    if (dynamoHistoryIDToChange == 4294967295)
+    // selection was successful (result was not invalid)
+    if (dynamoHistoryIDToChange != DynamoEyedropper.invalidHistoryID)
     {
+        await DynamoEyedropper.setChangeObjectToActiveState();
+
         await FormIt.Selection.ClearSelections();
 
-        let message = selectionMessagePrefixText + "to change";
-        await FormIt.UI.ShowNotification(message, FormIt.NotificationType.Information, 0);
-        console.log("\n" + message);
+        // clean up old notification handles, and show a new notification
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionInProgressNotificationHandle);    
+        DynamoEyedropper.selectionInProgressNotificationHandle = undefined;
+        await FormIt.UI.ShowNotification(DynamoEyedropper.selectionSuccessMessageText, FormIt.NotificationType.Success, 0);
+        DynamoEyedropper.selectionFailedNotificationHandle = undefined;
+    }
+    // if the selection isn't valid, and if the in-progress notification handle hasn't been defined,
+    // put the user back into selection mode
+    else if (dynamoHistoryIDToChange == DynamoEyedropper.invalidHistoryID && DynamoEyedropper.selectionInProgressNotificationHandle == undefined)
+    {
+        await FormIt.Selection.ClearSelections();
 
         bIsChangeObjectAvailable = false;
         bIsSelectionForChangeInProgress = true;
@@ -447,10 +462,26 @@ DynamoEyedropper.tryGetDynamoObjectToChange = async function()
         DynamoEyedropper.setChangeObjectToSelectingState();
         await DynamoEyedropper.updateUIForComparisonCheck();
 
+        // clean up old notification handles, and show a new notification
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionFailedNotificationHandle);
+        DynamoEyedropper.selectionFailedNotificationHandle = undefined;
+        DynamoEyedropper.selectionInProgressNotificationHandle = await FormIt.UI.ShowNotification(selectionMessagePrefixText + "to change...", FormIt.NotificationType.Information, 0);
     }
-    else
+    // otherwise, this is the second time the user is trying to select
+    // if it doesn't work at this point, consider the selection unset and end the selection session
+    else if (dynamoHistoryIDToChange == DynamoEyedropper.invalidHistoryID && DynamoEyedropper.selectionInProgressNotificationHandle)
     {
-        await DynamoEyedropper.setChangeObjectToActiveState();
+        await FormIt.Selection.ClearSelections();
+
+        bIsChangeObjectAvailable = false;
+        bIsSelectionForChangeInProgress = false;
+
+        DynamoEyedropper.setChangeObjectToUnsetState();
+
+        // clean up old notification handles, and show a new notification
+        DynamoEyedropper.selectionFailedNotificationHandle = await FormIt.UI.ShowNotification(DynamoEyedropper.selectionFailureMessageText, FormIt.NotificationType.Error, 0);
+        await FormIt.UI.CloseNotification(DynamoEyedropper.selectionInProgressNotificationHandle);
+        DynamoEyedropper.selectionInProgressNotificationHandle = undefined;
     }
 }
 
@@ -464,7 +495,7 @@ DynamoEyedropper.getDynamoInputsToMatch = async function()
     await DynamoEyedropper.tryGetDynamoObjectToMatch();
 
     // first, get selection basics to know whether we should even proceed
-    if (dynamoHistoryIDToMatch == null)
+    if (dynamoHistoryIDToMatch == DynamoEyedropper.invalidHistoryID)
     {
         return;
     }
@@ -485,7 +516,7 @@ DynamoEyedropper.getDynamoInputsToChange = async function()
     await DynamoEyedropper.tryGetDynamoObjectToChange();
 
     // first, get selection basics to know whether we should even proceed
-    if (dynamoHistoryIDToChange == null)
+    if (dynamoHistoryIDToChange == DynamoEyedropper.invalidHistoryID)
     {
         return;
     }
