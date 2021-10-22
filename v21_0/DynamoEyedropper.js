@@ -125,7 +125,7 @@ DynamoEyedropper.initializeUI = async function()
 
     // when the selections are fulfilled, compatible, but identical
     let identicalInputsDiv = contentContainer.appendChild(document.createElement('p'));
-    identicalInputsDiv.innerHTML = 'All input values are identical.';
+    identicalInputsDiv.innerHTML = 'All input values are either identical or incompatible.';
     identicalInputsDiv.id = identicalInputsDivID;
     contentContainer.appendChild(identicalInputsDiv);
 
@@ -594,7 +594,9 @@ DynamoEyedropper.getInputsInCommon = async function()
     for (let j = 0; j < dynamoInputNodeValuesToChange.length; j++)
     {
         // if the values are different, push data to various arrays
-        if (dynamoInputNodeValuesToMatch[j] != dynamoInputNodeValuesToChange[j])
+        // need to also check if the match and change values are both numbers or not
+        if ((dynamoInputNodeValuesToMatch[j] != dynamoInputNodeValuesToChange[j]) && 
+        (isNaN(dynamoInputNodeValuesToMatch[j]) == isNaN(dynamoInputNodeValuesToChange[j])))
         {
             dynamoInputGUIDsToModify.push(dynamoInputNodeGUIDsToChange[j]);
             dynamoInputNamesToModify.push(dynamoInputNodeNamesToChange[j]);
